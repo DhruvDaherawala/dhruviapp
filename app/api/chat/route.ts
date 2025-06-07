@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json()
 
   const result = streamText({
-    model: google("gemini-1.5-flash", {
+    model: google("gemini-2.0-flash", {
       apiKey: "AIzaSyDBiTQV5MT55E8e__W65TbGAHHPS3qoT0M",
     }),
     messages,
