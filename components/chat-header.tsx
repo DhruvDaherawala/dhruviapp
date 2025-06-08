@@ -11,7 +11,7 @@ export function ChatHeader() {
         <h1 className="text-2xl md:text-4xl font-bold text-white">SecretKeeper 4U</h1>
       </div>
       <p className="text-lg md:text-xl text-purple-300 font-medium">Hukum mere aaka !!</p>
-      <p className="text-sm text-gray-300 mt-1">Chat in any language</p>
+      <p className="text-sm text-gray-300 mt-1">Your Personal English Tutor</p>
     </div>
   )
 }
