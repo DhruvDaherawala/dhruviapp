@@ -1,6 +1,7 @@
 "use client"
 
-import { Bot, User, Volume2, Play, Square } from "lucide-react"
+import { Bot, User, Volume2, Play, Square, Copy, CheckCircle } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { speechService } from "@/lib/speech-service"
 
@@ -16,6 +17,7 @@ interface VoiceMessageBubbleProps {
 }
 
 export function VoiceMessageBubble({ message }: VoiceMessageBubbleProps) {
+  const [copied, setCopied] = useState(false)
   const isUser = message.role === "user"
   const isError = message.error
 
@@ -24,6 +26,16 @@ export function VoiceMessageBubble({ message }: VoiceMessageBubbleProps) {
       speechService.stopSpeaking()
     } else {
       speechService.speak(message.content, { rate: 0.9 })
+    }
+  }
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error("Failed to copy text:", err)
     }
   }
 
@@ -48,23 +60,23 @@ export function VoiceMessageBubble({ message }: VoiceMessageBubbleProps) {
       >
         <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words pr-8">{message.content}</p>
 
-        {/* Replay button for AI messages */}
+        {/* Controls for AI messages */}
         {!isUser && !isError && (
-          <Button
-            onClick={handleReplay}
-            variant="ghost"
-            size="sm"
-            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-white/10"
-          >
-            {message.isPlaying ? (
-              <Square className="w-3 h-3 text-gray-400" />
-            ) : (
-              <Play className="w-3 h-3 text-gray-400" />
-            )}
-          </Button>
+          <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button onClick={handleReplay} variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-white/10">
+              {message.isPlaying ? (
+                <Square className="w-3 h-3 text-gray-400" />
+              ) : (
+                <Play className="w-3 h-3 text-gray-400" />
+              )}
+            </Button>
+            <Button onClick={copyToClipboard} variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-white/10">
+              {copied ? <CheckCircle className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3 text-gray-400" />}
+            </Button>
+          </div>
         )}
 
-        {/* Speaking indicator */}
+        {/* Speaking indicator for AI messages */}
         {message.isPlaying && (
           <div className="absolute top-1 right-1">
             <Volume2 className="w-3 h-3 text-green-400 animate-pulse" />

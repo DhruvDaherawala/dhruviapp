@@ -1,6 +1,6 @@
 "use client"
 
-import { Mic, MicOff, Volume2, VolumeX } from "lucide-react"
+import { Mic, MicOff, Volume2, VolumeX, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface VoiceControlsProps {
@@ -25,6 +25,9 @@ export function VoiceControls({
   onStopSpeaking,
   capabilities,
 }: VoiceControlsProps) {
+  const isBusy = isProcessing || isSpeaking
+  const showStopSpeaking = isSpeaking && !isProcessing
+
   if (!capabilities.speechRecognition && !capabilities.speechSynthesis) {
     return (
       <div className="text-center p-4">
@@ -44,51 +47,63 @@ export function VoiceControls({
       <div className="relative">
         <Button
           onClick={isListening ? onStopListening : onStartListening}
-          disabled={isProcessing}
+          disabled={isBusy} // Disable if AI is processing or speaking
           className={`w-16 h-16 rounded-full transition-all duration-300 ${
             isListening ? "bg-red-500 hover:bg-red-600 animate-pulse" : "bg-purple-600 hover:bg-purple-700"
-          } ${isProcessing ? "opacity-50" : ""}`}
+          } ${isBusy ? "opacity-50 cursor-not-allowed" : ""}`}
         >
-          {isListening ? <MicOff className="w-8 h-8 text-white" /> : <Mic className="w-8 h-8 text-white" />}
+          {isBusy ? (
+            <Loader2 className="w-8 h-8 text-white animate-spin" />
+          ) : isListening ? (
+            <MicOff className="w-8 h-8 text-white" />
+          ) : (
+            <Mic className="w-8 h-8 text-white" />
+          )}
         </Button>
 
         {/* Listening indicator */}
-        {isListening && <div className="absolute -inset-2 rounded-full border-2 border-red-400 animate-ping" />}
+        {isListening && !isBusy && (
+          <div className="absolute -inset-2 rounded-full border-2 border-red-400 animate-ping" />
+        )}
       </div>
 
       {/* Stop Speaking Button */}
-      {isSpeaking && (
+      {showStopSpeaking && (
         <Button
           onClick={onStopSpeaking}
           variant="outline"
           className="bg-white/10 border-white/20 text-white hover:bg-white/20"
         >
           <VolumeX className="w-5 h-5 mr-2" />
-          Stop
+          Stop Speaking
         </Button>
       )}
 
       {/* Status Indicators */}
-      <div className="flex flex-col items-center gap-1">
+      <div className="flex flex-col items-center gap-1 min-h-[40px] justify-center">
         {isProcessing && (
           <div className="flex items-center gap-2 text-purple-300">
             <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
-            <span className="text-xs">Processing...</span>
+            <span className="text-xs">AI is thinking...</span>
           </div>
         )}
 
-        {isSpeaking && (
+        {isSpeaking && !isProcessing && (
           <div className="flex items-center gap-2 text-green-300">
             <Volume2 className="w-4 h-4" />
-            <span className="text-xs">Speaking...</span>
+            <span className="text-xs">AI is speaking...</span>
           </div>
         )}
 
-        {isListening && !isProcessing && (
+        {isListening && !isBusy && (
           <div className="flex items-center gap-2 text-red-300">
             <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
-            <span className="text-xs">Listening...</span>
+            <span className="text-xs">Listening for your voice...</span>
           </div>
+        )}
+
+        {!isListening && !isSpeaking && !isProcessing && (
+          <span className="text-xs text-gray-400">Click mic to speak</span>
         )}
       </div>
     </div>

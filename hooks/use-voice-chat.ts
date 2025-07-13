@@ -89,15 +89,22 @@ export function useVoiceChat(): UseVoiceChatReturn {
           finalTranscriptRef.current = ""
           setCurrentTranscript("")
         }
-      }, 1000) // Wait 1 second after final result
+      }, 700) // Wait a bit after final result to ensure user is done speaking
     }
   }, [])
 
   const processUserMessage = async (transcript: string) => {
-    if (!transcript.trim()) return
+    if (!transcript.trim()) {
+      // If transcript is empty, just stop listening and don't process
+      speechService.stopListening()
+      setIsListening(false)
+      return
+    }
 
     setIsProcessing(true)
     setError(null)
+    speechService.stopListening() // Stop listening while processing
+    setIsListening(false) // Update state
 
     // Add user message
     const userMessage: VoiceMessage = {
@@ -144,26 +151,23 @@ export function useVoiceChat(): UseVoiceChatReturn {
   }
 
   const speakMessage = (text: string, messageId: string) => {
-    // Mark message as playing
-    setMessages((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, isPlaying: true } : msg)))
+    speechService.stopListening() // Ensure listening is stopped while AI speaks
+    setIsListening(false) // Update state
 
     speechService.speak(
       text,
-      { rate: 0.9, pitch: 1.0 }, // Slightly slower for learning
+      { rate: 0.9, pitch: 1.0 },
       () => setIsSpeaking(true),
       () => {
         setIsSpeaking(false)
-        // Mark message as not playing
         setMessages((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, isPlaying: false } : msg)))
-        // Restart listening after speaking
-        if (isListening) {
-          setTimeout(() => startListening(), 500)
-        }
+        // IMPORTANT: Do NOT restart listening here. User will manually click.
       },
       (error) => {
         setError(`Speech error: ${error}`)
         setIsSpeaking(false)
         setMessages((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, isPlaying: false } : msg)))
+        // IMPORTANT: Do NOT restart listening here. User will manually click.
       },
     )
   }
@@ -173,6 +177,7 @@ export function useVoiceChat(): UseVoiceChatReturn {
       setError("Speech recognition is not supported in your browser")
       return
     }
+    if (speechService.getIsListening()) return // Prevent multiple starts
 
     speechService.startListening(
       handleSpeechResult,
@@ -181,35 +186,38 @@ export function useVoiceChat(): UseVoiceChatReturn {
         setIsListening(false)
       },
       () => {
+        // onEnd of recognition:
+        // This means the user stopped speaking or recognition timed out.
+        // Do NOT auto-restart listening. User will manually click.
         setIsListening(false)
-        // Auto-restart listening if not processing
-        if (!isProcessing && !isSpeaking) {
-          setTimeout(() => {
-            if (!isProcessing && !isSpeaking) {
-              startListening()
-            }
-          }, 1000)
-        }
       },
     )
-
     setIsListening(true)
     setError(null)
   }
 
   const startVoiceChat = useCallback(() => {
-    if (isSpeaking) {
-      speechService.stopSpeaking()
+    if (isSpeaking || isProcessing) {
+      // If AI is busy, stop its current action and then start listening
+      if (isSpeaking) {
+        speechService.stopSpeaking()
+        setIsSpeaking(false)
+      }
+      // If processing, wait for it to finish or handle appropriately
+      // For now, we'll just prevent starting if processing
+      if (isProcessing) return
     }
     startListening()
-  }, [isSpeaking])
+  }, [isSpeaking, isProcessing])
 
   const stopVoiceChat = useCallback(() => {
     speechService.stopListening()
+    speechService.stopSpeaking()
     setIsListening(false)
+    setIsSpeaking(false)
+    setIsProcessing(false)
     setCurrentTranscript("")
     finalTranscriptRef.current = ""
-
     if (processingTimeoutRef.current) {
       clearTimeout(processingTimeoutRef.current)
     }
@@ -220,6 +228,7 @@ export function useVoiceChat(): UseVoiceChatReturn {
     setIsSpeaking(false)
     // Update all playing messages
     setMessages((prev) => prev.map((msg) => ({ ...msg, isPlaying: false })))
+    // After stopping AI speech, the mic remains off. User must click to speak.
   }, [])
 
   const clearMessages = useCallback(() => {

@@ -44,7 +44,7 @@ export default function SecretKeeperVoiceChat() {
 
   const handleClearChat = () => {
     clearMessages()
-    stopVoiceChat()
+    stopVoiceChat() // Ensure all voice services are stopped
     setShowWelcome(true)
   }
 
@@ -80,7 +80,7 @@ export default function SecretKeeperVoiceChat() {
         </div>
 
         {/* Transcript Display */}
-        <TranscriptDisplay transcript={currentTranscript} isListening={isListening} />
+        <TranscriptDisplay transcript={currentTranscript} isListening={isListening} isProcessing={isProcessing} />
 
         {/* Voice Controls */}
         <div className="bg-white/5 backdrop-blur-sm border-t border-white/10">

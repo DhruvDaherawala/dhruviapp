@@ -18,8 +18,8 @@ export class SpeechService {
   private static instance: SpeechService
   private recognition: any = null
   private synthesis: SpeechSynthesis
-  private isListening = false
-  private isSpeaking = false
+  private isListeningFlag = false // Internal flag for recognition state
+  private isSpeakingFlag = false // Internal flag for synthesis state
   private voices: SpeechSynthesisVoice[] = []
 
   private constructor() {
@@ -119,7 +119,7 @@ export class SpeechService {
     onError: (error: string) => void,
     onEnd: () => void,
   ): boolean {
-    if (!this.recognition || this.isListening) {
+    if (!this.recognition || this.isListeningFlag) {
       return false
     }
 
@@ -156,15 +156,16 @@ export class SpeechService {
       }
 
       onError(errorMessage)
+      this.isListeningFlag = false // Update internal flag on error
     }
 
     this.recognition.onend = () => {
-      this.isListening = false
+      this.isListeningFlag = false
       onEnd()
     }
 
     this.recognition.onstart = () => {
-      this.isListening = true
+      this.isListeningFlag = true
     }
 
     try {
@@ -172,6 +173,7 @@ export class SpeechService {
       return true
     } catch (error) {
       onError("Failed to start speech recognition")
+      this.isListeningFlag = false // Update internal flag on error
       return false
     }
   }
@@ -180,8 +182,9 @@ export class SpeechService {
    * Stop listening
    */
   stopListening() {
-    if (this.recognition && this.isListening) {
+    if (this.recognition && this.isListeningFlag) {
       this.recognition.stop()
+      this.isListeningFlag = false // Update internal flag
     }
   }
 
@@ -219,17 +222,17 @@ export class SpeechService {
 
     // Event handlers
     utterance.onstart = () => {
-      this.isSpeaking = true
+      this.isSpeakingFlag = true
       onStart?.()
     }
 
     utterance.onend = () => {
-      this.isSpeaking = false
+      this.isSpeakingFlag = false
       onEnd?.()
     }
 
     utterance.onerror = (event) => {
-      this.isSpeaking = false
+      this.isSpeakingFlag = false
       onError?.(`Speech synthesis error: ${event.error}`)
     }
 
@@ -238,6 +241,7 @@ export class SpeechService {
       return true
     } catch (error) {
       onError?.("Failed to start speech synthesis")
+      this.isSpeakingFlag = false // Update internal flag on error
       return false
     }
   }
@@ -249,21 +253,21 @@ export class SpeechService {
     if (this.synthesis.speaking) {
       this.synthesis.cancel()
     }
-    this.isSpeaking = false
+    this.isSpeakingFlag = false
   }
 
   /**
    * Check if currently listening
    */
   getIsListening(): boolean {
-    return this.isListening
+    return this.isListeningFlag
   }
 
   /**
    * Check if currently speaking
    */
   getIsSpeaking(): boolean {
-    return this.isSpeaking
+    return this.isSpeakingFlag
   }
 
   /**
