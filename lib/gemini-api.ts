@@ -1,29 +1,30 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
-// System prompt for English learning
-const ENGLISH_TUTOR_PROMPT = `You are SecretKeeper 4U, an AI English tutor designed to help users achieve proficiency in English. Your slogan is "Hukum mere aaka !!"
+// Enhanced system prompt for voice-based English learning
+const VOICE_ENGLISH_TUTOR_PROMPT = `You are SecretKeeper 4U, a voice-based AI English tutor. Your slogan is "Hukum mere aaka !!"
+
+IMPORTANT: You are communicating through VOICE, so your responses will be spoken aloud. Keep this in mind for all responses.
 
 Your primary role is to:
-1. Help users improve their English speaking, writing, reading, and listening skills
-2. Correct grammar mistakes gently and explain the corrections
-3. Suggest better vocabulary and sentence structures
-4. Provide pronunciation tips when needed
-5. Engage in conversations that gradually increase in complexity
-6. Give encouragement and positive feedback
-7. Adapt to the user's current English level (beginner, intermediate, advanced)
+1. Help users improve their English speaking, pronunciation, and conversation skills through voice interaction
+2. Provide natural, conversational responses that sound good when spoken
+3. Correct pronunciation and grammar mistakes gently in a way that's clear when heard
+4. Encourage natural conversation flow and speaking practice
+5. Give pronunciation tips and speaking advice
+6. Adapt to the user's English level and speaking confidence
+7. Ask follow-up questions to keep the conversation engaging
 
-Guidelines:
-- Always be patient, encouraging, and supportive
-- Correct mistakes in a friendly, non-judgmental way
-- Provide explanations for corrections
-- Suggest alternative ways to express ideas
-- Use examples to illustrate grammar rules
-- Encourage practice through conversation
-- Ask follow-up questions to keep the conversation flowing
-- Celebrate improvements and progress
-- If users write in other languages, gently encourage them to try in English while still being helpful
+Voice-specific guidelines:
+- Keep responses conversational and natural-sounding
+- Use shorter sentences that are easy to understand when spoken
+- Avoid complex punctuation or formatting that doesn't translate to speech
+- When correcting mistakes, speak the correction clearly: "Instead of saying X, try saying Y"
+- Use encouraging tone and positive reinforcement
+- Ask questions to encourage the user to keep speaking
+- Provide pronunciation guidance: "The word 'pronunciation' is pronounced pro-nun-see-AY-shun"
+- Keep responses engaging but not too long (aim for 1-2 sentences usually)
 
-Remember: You're here to make English learning enjoyable and effective while keeping their learning journey confidential and safe.`
+Remember: This is a VOICE conversation, so make your responses sound natural and encouraging when spoken aloud. Help build the user's confidence in speaking English!`
 
 export interface ChatMessage {
   role: "user" | "assistant"
@@ -81,17 +82,17 @@ export class GeminiApiService {
 
       this.genAI = new GoogleGenerativeAI(apiKey)
       this.model = this.genAI.getGenerativeModel({
-        model: "gemini-1.5-flash", // Using gemini-1.5-flash instead of 2.0-flash for better compatibility
+        model: "gemini-1.5-flash",
       })
 
-      console.log("Gemini API initialized successfully")
+      console.log("Gemini API initialized successfully for voice chat")
     } catch (error) {
       console.error("Failed to initialize Gemini API:", error)
     }
   }
 
   /**
-   * Send a message to Gemini API and get response
+   * Send a message to Gemini API and get response optimized for voice
    */
   async sendMessage(userMessage: string): Promise<ApiResponse> {
     try {
@@ -107,7 +108,7 @@ export class GeminiApiService {
       if (!userMessage || userMessage.trim().length === 0) {
         return {
           success: false,
-          error: "Please enter a message.",
+          error: "Please say something.",
         }
       }
 
@@ -118,10 +119,10 @@ export class GeminiApiService {
         timestamp: new Date(),
       })
 
-      // Prepare the prompt with context
-      const fullPrompt = this.buildPromptWithContext(userMessage)
+      // Prepare the prompt with context for voice interaction
+      const fullPrompt = this.buildVoicePromptWithContext(userMessage)
 
-      console.log("Sending request to Gemini API...")
+      console.log("Sending voice request to Gemini API...")
 
       // Generate response from Gemini
       const result = await this.model.generateContent(fullPrompt)
@@ -144,7 +145,7 @@ export class GeminiApiService {
         timestamp: new Date(),
       })
 
-      console.log("Successfully received response from Gemini API")
+      console.log("Successfully received voice response from Gemini API")
 
       return {
         success: true,
@@ -153,22 +154,20 @@ export class GeminiApiService {
     } catch (error) {
       console.error("Gemini API Error:", error)
 
-      // Handle different types of errors
-      let errorMessage = "Sorry, I'm having trouble connecting right now. Please try again."
+      // Handle different types of errors with voice-appropriate messages
+      let errorMessage = "Sorry, I'm having trouble hearing you right now. Please try speaking again."
 
       if (error instanceof Error) {
         const errorStr = error.message.toLowerCase()
 
         if (errorStr.includes("api key not valid") || errorStr.includes("api_key_invalid")) {
-          errorMessage = "Invalid API key. Please check your Gemini API key configuration."
+          errorMessage = "There's a configuration issue. Please check the setup."
         } else if (errorStr.includes("quota") || errorStr.includes("limit")) {
-          errorMessage = "API quota exceeded. Please try again later."
+          errorMessage = "I'm at capacity right now. Please try again in a few minutes."
         } else if (errorStr.includes("network") || errorStr.includes("fetch")) {
-          errorMessage = "Network connection issue. Please check your internet and try again."
-        } else if (errorStr.includes("model not found")) {
-          errorMessage = "The AI model is currently unavailable. Please try again later."
+          errorMessage = "I'm having connection issues. Please check your internet and try again."
         } else if (errorStr.includes("safety")) {
-          errorMessage = "Your message was flagged by safety filters. Please try rephrasing your question."
+          errorMessage = "Let's try a different topic. What would you like to practice in English?"
         }
       }
 
@@ -180,24 +179,24 @@ export class GeminiApiService {
   }
 
   /**
-   * Build prompt with conversation context
+   * Build prompt with conversation context optimized for voice interaction
    */
-  private buildPromptWithContext(userMessage: string): string {
-    let prompt = ENGLISH_TUTOR_PROMPT + "\n\n"
+  private buildVoicePromptWithContext(userMessage: string): string {
+    let prompt = VOICE_ENGLISH_TUTOR_PROMPT + "\n\n"
 
-    // Include recent conversation history (last 6 messages for context)
-    const recentHistory = this.conversationHistory.slice(-6)
+    // Include recent conversation history (last 4 messages for voice context)
+    const recentHistory = this.conversationHistory.slice(-4)
 
     if (recentHistory.length > 0) {
-      prompt += "Recent conversation:\n"
+      prompt += "Recent voice conversation:\n"
       recentHistory.forEach((msg) => {
-        prompt += `${msg.role === "user" ? "Student" : "Tutor"}: ${msg.content}\n`
+        prompt += `${msg.role === "user" ? "Student said" : "Tutor said"}: "${msg.content}"\n`
       })
       prompt += "\n"
     }
 
-    prompt += `Current student message: ${userMessage}\n\n`
-    prompt += "Please respond as an encouraging English tutor:"
+    prompt += `Student just said: "${userMessage}"\n\n`
+    prompt += "Respond as a supportive English tutor in a way that sounds natural when spoken:"
 
     return prompt
   }
