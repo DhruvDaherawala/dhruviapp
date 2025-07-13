@@ -1,4 +1,4 @@
-"use client"
+"use client" // Mark this file as a client component
 
 export interface SpeechRecognitionResult {
   transcript: string
@@ -15,7 +15,7 @@ export interface SpeechSynthesisOptions {
 }
 
 export class SpeechService {
-  private static instance: SpeechService
+  private static instance: SpeechService | null = null // Make instance nullable
   private recognition: any = null
   private synthesis: SpeechSynthesis
   private isListeningFlag = false // Internal flag for recognition state
@@ -23,12 +23,20 @@ export class SpeechService {
   private voices: SpeechSynthesisVoice[] = []
 
   private constructor() {
+    // Ensure window is defined before accessing browser APIs
+    if (typeof window === "undefined") {
+      throw new Error("SpeechService cannot be initialized on the server.")
+    }
     this.synthesis = window.speechSynthesis
     this.initializeSpeechRecognition()
     this.loadVoices()
   }
 
   public static getInstance(): SpeechService {
+    // Only create instance if window is defined (i.e., on the client)
+    if (typeof window === "undefined") {
+      throw new Error("SpeechService can only be accessed on the client side.")
+    }
     if (!SpeechService.instance) {
       SpeechService.instance = new SpeechService()
     }
@@ -39,16 +47,14 @@ export class SpeechService {
    * Initialize Speech Recognition
    */
   private initializeSpeechRecognition() {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition
+    const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition
 
-      if (SpeechRecognition) {
-        this.recognition = new SpeechRecognition()
-        this.recognition.continuous = true
-        this.recognition.interimResults = true
-        this.recognition.lang = "en-US"
-        this.recognition.maxAlternatives = 1
-      }
+    if (SpeechRecognition) {
+      this.recognition = new SpeechRecognition()
+      this.recognition.continuous = true
+      this.recognition.interimResults = true
+      this.recognition.lang = "en-US"
+      this.recognition.maxAlternatives = 1
     }
   }
 
@@ -283,5 +289,8 @@ export class SpeechService {
   }
 }
 
-// Export singleton instance
-export const speechService = SpeechService.getInstance()
+// Export a function to get the instance, rather than the instance directly
+// This ensures it's only called on the client.
+export function getSpeechService(): SpeechService {
+  return SpeechService.getInstance()
+}

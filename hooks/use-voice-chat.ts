@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
-import { speechService, type SpeechRecognitionResult } from "@/lib/speech-service"
+import { getSpeechService, type SpeechRecognitionResult } from "@/lib/speech-service" // Corrected import
 
 export interface VoiceMessage {
   id: string
@@ -45,12 +45,27 @@ export function useVoiceChat(): UseVoiceChatReturn {
     englishVoices: 0,
   })
 
+  const speechServiceRef = useRef<ReturnType<typeof getSpeechService> | null>(null)
   const finalTranscriptRef = useRef("")
   const processingTimeoutRef = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
-    // Initialize capabilities
-    setCapabilities(speechService.getCapabilities())
+    // Initialize speechService only on the client side
+    if (typeof window !== "undefined") {
+      try {
+        speechServiceRef.current = getSpeechService()
+        setCapabilities(speechServiceRef.current.getCapabilities())
+      } catch (e) {
+        console.error("Failed to initialize SpeechService:", e)
+        setError("Voice features not available. Please use a compatible browser.")
+        setCapabilities({
+          speechRecognition: false,
+          speechSynthesis: false,
+          voicesAvailable: 0,
+          englishVoices: 0,
+        })
+      }
+    }
   }, [])
 
   const generateId = () => Math.random().toString(36).substring(7)
@@ -94,16 +109,21 @@ export function useVoiceChat(): UseVoiceChatReturn {
   }, [])
 
   const processUserMessage = async (transcript: string) => {
+    if (!speechServiceRef.current) {
+      setError("Speech service not initialized.")
+      return
+    }
+
     if (!transcript.trim()) {
       // If transcript is empty, just stop listening and don't process
-      speechService.stopListening()
+      speechServiceRef.current.stopListening()
       setIsListening(false)
       return
     }
 
     setIsProcessing(true)
     setError(null)
-    speechService.stopListening() // Stop listening while processing
+    speechServiceRef.current.stopListening() // Stop listening while processing
     setIsListening(false) // Update state
 
     // Add user message
@@ -151,10 +171,15 @@ export function useVoiceChat(): UseVoiceChatReturn {
   }
 
   const speakMessage = (text: string, messageId: string) => {
-    speechService.stopListening() // Ensure listening is stopped while AI speaks
+    if (!speechServiceRef.current) {
+      setError("Speech service not initialized.")
+      return
+    }
+
+    speechServiceRef.current.stopListening() // Ensure listening is stopped while AI speaks
     setIsListening(false) // Update state
 
-    speechService.speak(
+    speechServiceRef.current.speak(
       text,
       { rate: 0.9, pitch: 1.0 },
       () => setIsSpeaking(true),
@@ -173,13 +198,17 @@ export function useVoiceChat(): UseVoiceChatReturn {
   }
 
   const startListening = () => {
-    if (!speechService.isSpeechRecognitionSupported()) {
+    if (!speechServiceRef.current) {
+      setError("Speech service not initialized. Please refresh the page.")
+      return
+    }
+    if (!speechServiceRef.current.isSpeechRecognitionSupported()) {
       setError("Speech recognition is not supported in your browser")
       return
     }
-    if (speechService.getIsListening()) return // Prevent multiple starts
+    if (speechServiceRef.current.getIsListening()) return // Prevent multiple starts
 
-    speechService.startListening(
+    speechServiceRef.current.startListening(
       handleSpeechResult,
       (error) => {
         setError(error)
@@ -200,7 +229,7 @@ export function useVoiceChat(): UseVoiceChatReturn {
     if (isSpeaking || isProcessing) {
       // If AI is busy, stop its current action and then start listening
       if (isSpeaking) {
-        speechService.stopSpeaking()
+        speechServiceRef.current?.stopSpeaking() // Use optional chaining
         setIsSpeaking(false)
       }
       // If processing, wait for it to finish or handle appropriately
@@ -211,8 +240,8 @@ export function useVoiceChat(): UseVoiceChatReturn {
   }, [isSpeaking, isProcessing])
 
   const stopVoiceChat = useCallback(() => {
-    speechService.stopListening()
-    speechService.stopSpeaking()
+    speechServiceRef.current?.stopListening() // Use optional chaining
+    speechServiceRef.current?.stopSpeaking() // Use optional chaining
     setIsListening(false)
     setIsSpeaking(false)
     setIsProcessing(false)
@@ -224,7 +253,7 @@ export function useVoiceChat(): UseVoiceChatReturn {
   }, [])
 
   const stopSpeaking = useCallback(() => {
-    speechService.stopSpeaking()
+    speechServiceRef.current?.stopSpeaking() // Use optional chaining
     setIsSpeaking(false)
     // Update all playing messages
     setMessages((prev) => prev.map((msg) => ({ ...msg, isPlaying: false })))
